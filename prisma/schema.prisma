@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile          UserProfile?
+  mealPlans        MealPlan[]
+  shoppingLists    ShoppingList[]
+  favoriteRecipes  FavoriteRecipe[]
+}
+
+model UserProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  age                 Int?
+  gender              String?
+  height              Float?   // in cm
+  weight              Float?   // in kg
+  activityLevel       String?  // sedentary, light, moderate, active, very_active
+  goal                String?  // lose_weight, maintain, gain_weight, build_muscle
+
+  // Dietary preferences
+  dietType            String?  // omnivore, vegetarian, vegan, pescatarian, keto, paleo
+  calorieTarget       Int?
+  proteinTarget       Int?
+  carbTarget          Int?
+  fatTarget           Int?
+
+  // Restrictions
+  allergies           String?  // JSON array
+  intolerances        String?  // JSON array
+  dislikedIngredients String?  // JSON array
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Recipe {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  prepTime        Int      // in minutes
+  cookTime        Int      // in minutes
+  servings        Int
+  difficulty      String   // easy, medium, hard
+
+  // Nutrition per serving
+  calories        Int
+  protein         Float
+  carbs           Float
+  fat             Float
+  fiber           Float?
+  sugar           Float?
+
+  instructions    String   // JSON array of steps
+  imageUrl        String?
+  tags            String?  // JSON array
+  cuisine         String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  ingredients     RecipeIngredient[]
+  mealPlanItems   MealPlanItem[]
+  favoriteRecipes FavoriteRecipe[]
+}
+
+model Ingredient {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  category        String   // produce, protein, dairy, grains, etc.
+  unit            String   // g, ml, piece, cup, etc.
+
+  // Nutrition per 100g/ml
+  caloriesPer100  Float
+  proteinPer100   Float
+  carbsPer100     Float
+  fatPer100       Float
+  fiberPer100     Float?
+
+  commonAllergens String?  // JSON array
+  isVegan         Boolean  @default(false)
+  isVegetarian    Boolean  @default(false)
+  isGlutenFree    Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  recipeIngredients RecipeIngredient[]
+  shoppingListItems ShoppingListItem[]
+  groceryProducts   GroceryProduct[]
+}
+
+model RecipeIngredient {
+  id           String     @id @default(uuid())
+  recipeId     String
+  recipe       Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  amount       Float
+  unit         String
+  notes        String?
+
+  @@unique([recipeId, ingredientId])
+}
+
+model MealPlan {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+
+  totalCalories Int?
+  totalProtein  Float?
+  totalCarbs    Float?
+  totalFat      Float?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       MealPlanItem[]
+}
+
+model MealPlanItem {
+  id          String   @id @default(uuid())
+  mealPlanId  String
+  mealPlan    MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  recipeId    String
+  recipe      Recipe   @relation(fields: [recipeId], references: [id])
+
+  date        DateTime
+  mealType    String   // breakfast, lunch, dinner, snack
+  servings    Int      @default(1)
+
+  createdAt   DateTime @default(now())
+}
+
+model ShoppingList {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  mealPlanId  String?  // Optional link to meal plan
+  isCompleted Boolean  @default(false)
+
+  totalEstimatedCost Float?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       ShoppingListItem[]
+}
+
+model ShoppingListItem {
+  id             String       @id @default(uuid())
+  shoppingListId String
+  shoppingList   ShoppingList @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
+  ingredientId   String
+  ingredient     Ingredient   @relation(fields: [ingredientId], references: [id])
+
+  amount         Float
+  unit           String
+  isPurchased    Boolean      @default(false)
+  estimatedPrice Float?
+
+  createdAt      DateTime     @default(now())
+}
+
+model GroceryProduct {
+  id           String     @id @default(uuid())
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  storeName    String     // Walmart, Whole Foods, etc.
+  productName  String
+  brand        String?
+  price        Float
+  quantity     Float
+  unit         String
+
+  inStock      Boolean    @default(true)
+  productUrl   String?
+  imageUrl     String?
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([ingredientId, storeName])
+}
+
+model FavoriteRecipe {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, recipeId])
+}
